@@ -16,7 +16,13 @@ const { protect } = require('../middleware/authMiddleware');
  *   get:
  *     summary: Login with Spotify
  *     tags: [Authentication]
- *     description: Redirects the user to the Spotify authentication page to grant permission.
+ *     description: Redirects the user to the Spotify authentication page to grant permission. If a `ref` query parameter is provided, it will be used to track the referral.
+ *     parameters:
+ *       - in: query
+ *         name: ref
+ *         schema:
+ *           type: string
+ *         description: An optional referral code.
  *     responses:
  *       302:
  *         description: A successful redirect to Spotify's login page.

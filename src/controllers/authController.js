@@ -22,6 +22,11 @@ const login = (req, res) => {
   const state = generateRandomString(16);
   res.cookie('spotify_auth_state', state);
 
+  const refCode = req.query.ref || null;
+  if (refCode) {
+    res.cookie('referral_code', refCode, { maxAge: 900000, httpOnly: true });
+  }
+
   const scope = 'user-read-private user-read-email';
   res.redirect('https://accounts.spotify.com/authorize?' +
     querystring.stringify({
@@ -37,12 +42,16 @@ const callback = async (req, res) => {
   const code = req.query.code || null;
   const state = req.query.state || null;
   const storedState = req.cookies ? req.cookies['spotify_auth_state'] : null;
+  const referralCode = req.cookies ? req.cookies['referral_code'] : null;
 
   if (state === null || state !== storedState) {
     return res.redirect('/#' + querystring.stringify({ error: 'state_mismatch' }));
   }
 
   res.clearCookie('spotify_auth_state');
+  if (referralCode) {
+    res.clearCookie('referral_code');
+  }
 
   const authOptions = {
     url: 'https://accounts.spotify.com/api/token',
@@ -85,6 +94,24 @@ const callback = async (req, res) => {
         points += 500;
       }
 
+      let referred_by_id = null;
+      if (referralCode) {
+        const { data: referrer, error: referrerError } = await supabase
+          .from('users')
+          .select('id, points')
+          .eq('referral_code', referralCode)
+          .single();
+
+        if (referrer) {
+          referred_by_id = referrer.id;
+          // Award points to the referrer
+          await supabase
+            .from('users')
+            .update({ points: referrer.points + 5 })
+            .eq('id', referrer.id);
+        }
+      }
+
       const { data: newUser, error: insertError } = await supabase
         .from('users')
         .insert([{
@@ -93,7 +120,8 @@ const callback = async (req, res) => {
           username: profile.display_name,
           premium_status: profile.product === 'premium',
           points: points,
-          referral_code: referral_code
+          referral_code: referral_code,
+          referred_by: referred_by_id
         }])
         .select()
         .single();

@@ -16,9 +16,22 @@ const { protect } = require('../middleware/authMiddleware');
  *   post:
  *     summary: Claim the airdrop
  *     tags: [Airdrop]
- *     description: Allows an authenticated user to claim their airdrop. There is a 3-day cooldown period between claims.
+ *     description: Allows an authenticated user to claim their airdrop by providing a payment transaction hash. There is a 3-day cooldown period between claims.
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - transactionHash
+ *             properties:
+ *               transactionHash:
+ *                 type: string
+ *                 description: The hash of the payment transaction on the Base network.
+ *                 example: '0x123...'
  *     responses:
  *       200:
  *         description: Airdrop claimed successfully.
