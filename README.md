@@ -9,8 +9,13 @@ This is the backend service for a Spotify-based airdrop application. It handles 
 - **Point Allocation**:
   - New users receive a base of 1000 points.
   - Spotify Premium users get an additional 500 points.
-- **Referral System**: Each user gets a unique referral link to share. (Note: The logic for awarding points for referrals needs to be implemented when a new user signs up using a referral link).
-- **Airdrop Claiming**: A placeholder endpoint that allows users to claim an airdrop, with a 3-day cooldown period between claims.
+- **Referral System**: A fully implemented system that rewards users with 5 points for each successful referral.
+  - Each user receives a unique referral link on their dashboard.
+  - When a new user signs up using this link, the backend automatically awards 5 points to the referrer.
+- **Airdrop Claiming**: The endpoint for claiming airdrops verifies the user's payment on the Base blockchain.
+  - It requires a transaction hash as proof of payment.
+  - The backend checks the transaction to ensure the correct amount was sent to the correct wallet address.
+  - The 3-day claiming cooldown is only initiated after a successful on-chain verification.
 - **API Documentation**: Interactive API documentation available through Swagger UI.
 
 ## Tech Stack
