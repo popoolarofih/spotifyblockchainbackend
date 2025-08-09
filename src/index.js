@@ -2,11 +2,17 @@ require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
+const cors = require('cors');
 
 const app = express();
 const port = process.env.PORT || 3000;
 
 // Middleware
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || 'http://localhost:3001',
+  credentials: true, // This allows cookies to be sent
+};
+app.use(cors(corsOptions));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cookieParser());
