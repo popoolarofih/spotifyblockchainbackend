@@ -80,7 +80,9 @@ Before you begin, ensure you have the following installed:
     This command starts the server in a standard way.
     ```bash
     npm start
-    ``
+    ```
+
+The server will be running at `http://localhost:3000` (or your specified port).
 
 ## API Endpoints
 

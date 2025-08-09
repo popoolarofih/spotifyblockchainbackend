@@ -26,8 +26,10 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 // Routes
 const authRoutes = require('./routes/auth');
 const airdropRoutes = require('./routes/airdrop');
+const healthRoutes = require('./routes/health');
 app.use('/auth', authRoutes);
 app.use('/airdrop', airdropRoutes);
+app.use('/health', healthRoutes);
 
 // Basic Route
 app.get('/', (req, res) => {
