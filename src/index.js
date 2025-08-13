@@ -36,7 +36,11 @@ app.get('/', (req, res) => {
   res.send('Server is running!');
 });
 
-// Start Server
-app.listen(port, () => {
-  console.log(`Server listening at http://localhost:${port}`);
-});
+// Start Server only if not in test environment
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Server listening at http://localhost:${port}`);
+  });
+}
+
+module.exports = app;
