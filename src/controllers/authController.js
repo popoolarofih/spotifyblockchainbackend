@@ -3,11 +3,12 @@ const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const querystring = require('querystring');
 
-// It's highly recommended to move these to your .env file
+// Environment variables
 const JWT_SECRET = process.env.JWT_SECRET || 'a-very-secret-key-that-should-be-in-env';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:3001';
-const REDIRECT_URI = process.env.REDIRECT_URI || `http://localhost:${process.env.PORT || 3000}/auth/callback`;
-
+const REDIRECT_URI = process.env.REDIRECT_URI || `http://localhost:3000/auth/callback`;
+const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID;
+const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET;
 
 const generateRandomString = (length) => {
   let text = '';
@@ -20,145 +21,121 @@ const generateRandomString = (length) => {
 
 const login = (req, res) => {
   const state = generateRandomString(16);
-  res.cookie('spotify_auth_state', state);
+  res.cookie('twitch_auth_state', state);
 
   const refCode = req.query.ref || null;
   if (refCode) {
     res.cookie('referral_code', refCode, { maxAge: 900000, httpOnly: true });
   }
 
-  const scope = 'user-read-private user-read-email';
-  res.redirect('https://accounts.spotify.com/authorize?' +
+  const scope = 'user:read:email';
+  res.redirect('https://id.twitch.tv/oauth2/authorize?' +
     querystring.stringify({
       response_type: 'code',
-      client_id: process.env.SPOTIFY_CLIENT_ID,
-      scope: scope,
+      client_id: TWITCH_CLIENT_ID,
       redirect_uri: REDIRECT_URI,
-      state: state
+      scope: scope,
+      state: state,
     }));
 };
 
 const callback = async (req, res) => {
-  const code = req.query.code || null;
-  const state = req.query.state || null;
-  const storedState = req.cookies ? req.cookies['spotify_auth_state'] : null;
+  const { code, state } = req.query;
+  const storedState = req.cookies ? req.cookies['twitch_auth_state'] : null;
   const referralCode = req.cookies ? req.cookies['referral_code'] : null;
 
   if (state === null || state !== storedState) {
-    return res.redirect('/#' + querystring.stringify({ error: 'state_mismatch' }));
+    return res.redirect(FRONTEND_URL + '/#' + querystring.stringify({ error: 'state_mismatch' }));
   }
 
-  res.clearCookie('spotify_auth_state');
+  res.clearCookie('twitch_auth_state');
   if (referralCode) {
     res.clearCookie('referral_code');
   }
 
-  const authOptions = {
-    url: 'https://accounts.spotify.com/api/token',
-    data: querystring.stringify({
-      code: code,
-      redirect_uri: REDIRECT_URI,
-      grant_type: 'authorization_code'
-    }),
-    headers: {
-      'Authorization': 'Basic ' + (Buffer.from(process.env.SPOTIFY_CLIENT_ID + ':' + process.env.SPOTIFY_CLIENT_SECRET).toString('base64')),
-      'Content-Type': 'application/x-www-form-urlencoded'
-    }
-  };
-
   try {
-    const response = await axios.post(authOptions.url, authOptions.data, { headers: authOptions.headers });
-    const { access_token, refresh_token } = response.data;
+    // 1. Exchange authorization code for an access token
+    const tokenResponse = await axios.post('https://id.twitch.tv/oauth2/token', querystring.stringify({
+      client_id: TWITCH_CLIENT_ID,
+      client_secret: TWITCH_CLIENT_SECRET,
+      code: code,
+      grant_type: 'authorization_code',
+      redirect_uri: REDIRECT_URI,
+    }));
 
-    const profileResponse = await axios.get('https://api.spotify.com/v1/me', {
-      headers: { 'Authorization': 'Bearer ' + access_token }
+    const accessToken = tokenResponse.data.access_token;
+
+    // 2. Use the access token to get user information
+    const userResponse = await axios.get('https://api.twitch.tv/helix/users', {
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Client-Id': TWITCH_CLIENT_ID,
+      },
     });
-    const profile = profileResponse.data;
 
+    const profile = userResponse.data.data[0];
+
+    // 3. Check if user exists in our database
     let { data: user, error } = await supabase
       .from('users')
       .select('*')
-      .eq('spotify_id', profile.id)
+      .eq('twitch_id', profile.id)
       .single();
 
     if (error && error.code !== 'PGRST116') { // PGRST116: "The result contains 0 rows"
-      console.error('Error fetching user:', error);
       throw error;
     }
 
+    // 4. Create or update user
     if (!user) {
       // New user
-      const referral_code = generateRandomString(8);
-      let points = 1000;
-      if (profile.product === 'premium') {
-        points += 500;
-      }
+      const newReferralCode = generateRandomString(8);
+      const points = 1500; // New point allocation for Twitch users
 
       let referred_by_id = null;
       if (referralCode) {
-        const { data: referrer, error: referrerError } = await supabase
-          .from('users')
-          .select('id, points')
-          .eq('referral_code', referralCode)
-          .single();
-
+        const { data: referrer } = await supabase.from('users').select('id, points').eq('referral_code', referralCode).single();
         if (referrer) {
           referred_by_id = referrer.id;
-          // Award points to the referrer
-          await supabase
-            .from('users')
-            .update({ points: referrer.points + 5 })
-            .eq('id', referrer.id);
+          await supabase.from('users').update({ points: referrer.points + 5 }).eq('id', referrer.id);
         }
       }
 
       const { data: newUser, error: insertError } = await supabase
         .from('users')
         .insert([{
-          spotify_id: profile.id,
+          twitch_id: profile.id,
           email: profile.email,
           username: profile.display_name,
-          premium_status: profile.product === 'premium',
           points: points,
-          referral_code: referral_code,
-          referred_by: referred_by_id
+          referral_code: newReferralCode,
+          referred_by: referred_by_id,
         }])
         .select()
         .single();
 
-      if (insertError) {
-        console.error('Error inserting user:', insertError);
-        throw insertError;
-      }
+      if (insertError) throw insertError;
       user = newUser;
     } else {
-      // Existing user, update premium status and username
+      // Existing user, update their details if needed
       const { data: updatedUser, error: updateError } = await supabase
         .from('users')
-        .update({
-            premium_status: profile.product === 'premium',
-            username: profile.display_name,
-            email: profile.email
-        })
-        .eq('spotify_id', profile.id)
+        .update({ username: profile.display_name, email: profile.email })
+        .eq('twitch_id', profile.id)
         .select()
         .single();
 
-      if (updateError) {
-        console.error('Error updating user:', updateError);
-        throw updateError;
-      }
+      if (updateError) throw updateError;
       user = updatedUser;
     }
 
-    const token = jwt.sign({ id: user.id, spotify_id: user.spotify_id }, JWT_SECRET, { expiresIn: '1h' });
-
-    // Redirect to frontend with token
+    // 5. Generate JWT and redirect to frontend
+    const token = jwt.sign({ id: user.id, twitch_id: user.twitch_id }, JWT_SECRET, { expiresIn: '1h' });
     res.redirect(`${FRONTEND_URL}?token=${token}`);
 
   } catch (error) {
     console.error('Authentication error:', error.response ? error.response.data : error.message);
-    res.redirect('/#' + querystring.stringify({ error: 'invalid_token' }));
+    res.redirect(FRONTEND_URL + '/#' + querystring.stringify({ error: 'invalid_token' }));
   }
 };
 
@@ -170,9 +147,7 @@ const profile = async (req, res) => {
             .eq('id', req.user.id)
             .single();
 
-        if (error) {
-            throw error;
-        }
+        if (error) throw error;
 
         if (user) {
             const referral_link = `${FRONTEND_URL}/register?ref=${user.referral_code}`;
@@ -189,5 +164,5 @@ const profile = async (req, res) => {
 module.exports = {
   login,
   callback,
-  profile
+  profile,
 };

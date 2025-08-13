@@ -1,14 +1,13 @@
-# Spotify Airdrop Backend
+# Twitch Airdrop Backend
 
-This is the backend service for a Spotify-based airdrop application. It handles user authentication via Spotify, manages user data in a Supabase database, and provides API endpoints for a user dashboard and airdrop claiming.
+This is the backend service for a Twitch-based airdrop application. It handles user authentication via Twitch, manages user data in a Supabase database, and provides API endpoints for a user dashboard and airdrop claiming.
 
 ## Features
 
-- **Spotify Authentication**: Secure user login and signup using Spotify OAuth 2.0.
+- **Twitch Authentication**: Secure user login and signup using Twitch OAuth 2.0.
 - **User Dashboard**: An endpoint to retrieve user information, including username, email, points, and a personal referral link.
 - **Point Allocation**:
-  - New users receive a base of 1000 points.
-  - Spotify Premium users get an additional 500 points.
+  - New users receive a base of 1500 points upon signing up.
 - **Referral System**: A fully implemented system that rewards users with 5 points for each successful referral.
   - Each user receives a unique referral link on their dashboard.
   - When a new user signs up using this link, the backend automatically awards 5 points to the referrer.
@@ -31,7 +30,7 @@ This is the backend service for a Spotify-based airdrop application. It handles 
 Before you begin, ensure you have the following installed:
 - [Node.js](https://nodejs.org/en/) (which includes npm)
 - A [Supabase](https://supabase.com/) account.
-- A [Spotify for Developers](https://developer.spotify.com/dashboard/) account.
+- A [Twitch Developer](https://dev.twitch.tv/console) account.
 
 ## Installation and Setup
 
@@ -48,36 +47,27 @@ Before you begin, ensure you have the following installed:
 
 3.  **Set up Supabase:**
     - Create a new project on your [Supabase Dashboard](https://app.supabase.io).
-    - Navigate to the **SQL Editor**.
-    - Copy the content of the `schema.sql` file from this project and run it to create the `users` table.
+    - Run the initial schema from `schema.sql` in the SQL Editor.
+    - **Important**: Run the migration script `migration_twitch.sql` in the SQL Editor to adapt the database for Twitch authentication.
 
-4.  **Set up Spotify Developer App:**
-    - Go to your [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/applications).
-    - Create a new application.
+4.  **Set up Twitch Developer App:**
+    - Go to your [Twitch Developer Console](https://dev.twitch.tv/console/apps).
+    - Create a new application (or use an existing one).
     - Note down your **Client ID** and **Client Secret**.
-    - Go to the app settings and add a **Redirect URI**. For local development, this will be `http://localhost:3000/auth/callback` (assuming the default port is 3000).
+    - Under the application settings, add an **OAuth Redirect URL**. For local development, this will be `http://localhost:3000/auth/callback` (assuming the default port is 3000).
 
 5.  **Configure Environment Variables:**
     - Make a copy of the `.env.example` file and name it `.env`.
-    - Open the `.env` file and fill in the required values:
-      - `SUPABASE_URL`: Your Supabase project URL.
-      - `SUPABASE_ANON_KEY`: Your Supabase project's `anon` public key.
-      - `SPOTIFY_CLIENT_ID`: Your Spotify app's Client ID.
-      - `SPOTIFY_CLIENT_SECRET`: Your Spotify app's Client Secret.
-      - `JWT_SECRET`: A long, random, and secret string for signing JWTs.
-      - `FRONTEND_URL`: The URL of your frontend application (e.g., `http://localhost:3001`).
-      - `PORT`: The port for the server to run on (defaults to 3000).
+    - Open the `.env` file and fill in the required values, including your Supabase and Twitch credentials.
 
 ## Running the Application
 
 -   **Development Mode:**
-    This command starts the server with `nodemon`, which will automatically restart the server on file changes.
     ```bash
     npm run dev
     ```
 
 -   **Production Mode:**
-    This command starts the server in a standard way.
     ```bash
     npm start
     ```
@@ -89,5 +79,3 @@ The server will be running at `http://localhost:3000` (or your specified port).
 The API is documented using Swagger. Once the server is running, you can access the interactive API documentation at:
 
 [`http://localhost:3000/api-docs`](http://localhost:3000/api-docs)
-
-From the Swagger UI, you can view all available endpoints, see their request/response formats, and test them directly from your browser.

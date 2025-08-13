@@ -7,16 +7,16 @@ const { protect } = require('../middleware/authMiddleware');
  * @swagger
  * tags:
  *   name: Authentication
- *   description: User authentication and authorization
+ *   description: User authentication and authorization via Twitch
  */
 
 /**
  * @swagger
  * /auth/login:
  *   get:
- *     summary: Login with Spotify
+ *     summary: Login with Twitch
  *     tags: [Authentication]
- *     description: Redirects the user to the Spotify authentication page to grant permission. If a `ref` query parameter is provided, it will be used to track the referral.
+ *     description: Redirects the user to the Twitch authentication page to grant permission. If a `ref` query parameter is provided, it will be used to track the referral.
  *     parameters:
  *       - in: query
  *         name: ref
@@ -25,7 +25,7 @@ const { protect } = require('../middleware/authMiddleware');
  *         description: An optional referral code.
  *     responses:
  *       302:
- *         description: A successful redirect to Spotify's login page.
+ *         description: A successful redirect to Twitch's login page.
  */
 router.get('/login', authController.login);
 
@@ -33,15 +33,15 @@ router.get('/login', authController.login);
  * @swagger
  * /auth/callback:
  *   get:
- *     summary: Spotify authentication callback
+ *     summary: Twitch authentication callback
  *     tags: [Authentication]
- *     description: This is the callback URL that Spotify redirects to after user authentication. It handles the code exchange and user creation/login. The user is then redirected to the frontend with a JWT.
+ *     description: This is the callback URL that Twitch redirects to after user authentication. It handles the code exchange and user creation/login. The user is then redirected to the frontend with a JWT.
  *     parameters:
  *       - in: query
  *         name: code
  *         schema:
  *           type: string
- *         description: The authorization code returned from Spotify.
+ *         description: The authorization code returned from Twitch.
  *       - in: query
  *         name: state
  *         schema:
